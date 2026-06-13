@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiniGPT</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f0;
+      color: #1a1a1a;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+    }
+
+    header {
+      width: 100%;
+      max-width: 720px;
+      margin-bottom: 24px;
+    }
+
+    header h1 { font-size: 22px; font-weight: 600; }
+    header p  { font-size: 13px; color: #666; margin-top: 4px; }
+
+    #model-info {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: #EEEDFE;
+      color: #3C3489;
+      border: 1px solid #AFA9EC;
+    }
+
+    #chat-window {
+      width: 100%;
+      max-width: 720px;
+      background: white;
+      border-radius: 14px;
+      border: 1px solid #e0e0d8;
+      min-height: 340px;
+      max-height: 480px;
+      overflow-y: auto;
+      padding: 20px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .message {
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 15px;
+      line-height: 1.6;
+      max-width: 85%;
+    }
+
+    .message.user {
+      background: #EEEDFE;
+      color: #26215C;
+      align-self: flex-end;
+    }
+
+    .message.model {
+      background: #f0f0ea;
+      color: #1a1a1a;
+      align-self: flex-start;
+    }
+
+    .message.model .cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1em;
+      background: #534AB7;
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: blink .7s step-end infinite;
+    }
+
+    @keyframes blink { 50% { opacity: 0; } }
+
+    #controls {
+      width: 100%;
+      max-width: 720px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    #input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    #prompt-input {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1.5px solid #d0d0c8;
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+      background: white;
+      transition: border-color .15s;
+    }
+
+    #prompt-input:focus { border-color: #534AB7; }
+
+    button {
+      padding: 10px 20px;
+      border-radius: 10px;
+      border: none;
+      font-size: 15px;
+      font-family: inherit;
+      cursor: pointer;
+      font-weight: 500;
+      transition: opacity .15s;
+    }
+
+    button:hover { opacity: .85; }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+
+    #send-btn { background: #534AB7; color: white; }
+    #clear-btn { background: #f0f0ea; color: #444; }
+
+    #sliders {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .slider-group label {
+      font-size: 12px;
+      color: #666;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .slider-group input[type=range] {
+      width: 100%;
+      accent-color: #534AB7;
+    }
+
+    #status {
+      font-size: 12px;
+      color: #999;
+      text-align: center;
+      min-height: 18px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>MiniGPT</h1>
+  <p>Your language model, built from scratch.</p>
+  <div id="model-info">
+    <span class="badge" id="badge-vocab">loading...</span>
+    <span class="badge" id="badge-layers"></span>
+    <span class="badge" id="badge-dim"></span>
+  </div>
+</header>
+
+<div id="chat-window">
+  <div class="message model">
+    Model loaded. Type a prompt and I'll complete it using the engine we built together.
+  </div>
+</div>
+
+<div id="controls">
+  <div id="input-row">
+    <input id="prompt-input" type="text" placeholder="the cat..." value="the cat" />
+    <button id="send-btn" onclick="sendPrompt()">Generate</button>
+    <button id="clear-btn" onclick="clearChat()">Clear</button>
+  </div>
+
+  <div id="sliders">
+    <div class="slider-group">
+      <label>
+        Temperature
+        <span id="temp-val">0.8</span>
+      </label>
+      <input type="range" min="0.1" max="2.0" step="0.05" value="0.8"
+             oninput="document.getElementById('temp-val').textContent = parseFloat(this.value).toFixed(2)">
+    </div>
+    <div class="slider-group">
+      <label>
+        Top-p
+        <span id="topp-val">0.90</span>
+      </label>
+      <input type="range" min="0.1" max="1.0" step="0.05" value="0.9"
+             oninput="document.getElementById('topp-val').textContent = parseFloat(this.value).toFixed(2)">
+    </div>
+    <div class="slider-group">
+      <label>
+        Max tokens
+        <span id="maxt-val">20</span>
+      </label>
+      <input type="range" min="5" max="80" step="5" value="20"
+             oninput="document.getElementById('maxt-val').textContent = this.value">
+    </div>
+  </div>
+
+  <div id="status"></div>
+</div>
+
+<script>
+  const chatWindow = document.getElementById('chat-window');
+  const sendBtn    = document.getElementById('send-btn');
+  const status     = document.getElementById('status');
+
+  // Load model info
+  fetch('/vocab').then(r => r.json()).then(info => {
+    document.getElementById('badge-vocab').textContent  = `vocab: ${info.vocab_size} tokens`;
+    document.getElementById('badge-layers').textContent = `${info.num_layers} layers`;
+    document.getElementById('badge-dim').textContent    = `embed dim: ${info.embed_dim}`;
+  });
+
+  function addMessage(text, role) {
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+    div.textContent = text;
+    chatWindow.appendChild(div);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+    return div;
+  }
+
+  function setStatus(text) {
+    status.textContent = text;
+  }
+
+  function clearChat() {
+    chatWindow.innerHTML = '';
+    addMessage('Chat cleared. Enter a new prompt.', 'model');
+  }
+
+  async function sendPrompt() {
+    const input = document.getElementById('prompt-input');
+    const prompt = input.value.trim();
+    if (!prompt) return;
+
+    const temperature = parseFloat(document.querySelector('#sliders input:nth-child(1), input[type=range]').value);
+    const sliders = document.querySelectorAll('input[type=range]');
+    const temp   = parseFloat(sliders[0].value);
+    const top_p  = parseFloat(sliders[1].value);
+    const maxTok = parseInt(sliders[2].value);
+
+    addMessage(prompt, 'user');
+    sendBtn.disabled = true;
+    setStatus('Generating...');
+
+    const modelMsg = addMessage('', 'model');
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    modelMsg.appendChild(cursor);
+
+    const response = await fetch('/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, temperature: temp, top_p, max_tokens: maxTok }),
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let tokenCount = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const event = JSON.parse(line.slice(6));
+
+          if (event.type === 'token') {
+            modelMsg.insertBefore(document.createTextNode(' ' + event.text), cursor);
+            tokenCount++;
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+          } else if (event.type === 'done') {
+            cursor.remove();
+            setStatus(`Done — ${tokenCount} tokens generated.`);
+            sendBtn.disabled = false;
+          } else if (event.type === 'error') {
+            cursor.remove();
+            modelMsg.textContent += ` [error: ${event.text}]`;
+            sendBtn.disabled = false;
+          }
+        } catch (e) { /* partial line, wait for more */ }
+      }
+    }
+    sendBtn.disabled = false;
+  }
+
+  document.getElementById('prompt-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendPrompt();
+  });
+</script>
+
+</body>
+</html>
