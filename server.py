@@ -34,22 +34,29 @@ model = MiniGPT(
     num_layers=3,
 )
 
-# Train for a few hundred steps
-all_ids = tokenizer.encode(" ".join(CORPUS))
-lr, epsilon = 0.02, 1e-3
-for epoch in range(10):
-    for i in range(min(16, len(model.out_proj))):
-        for j in range(min(16, len(model.out_proj[0]))):
-            orig = model.out_proj[i][j]
-            model.out_proj[i][j] = orig + epsilon
-            lp = model.loss(all_ids)
-            model.out_proj[i][j] = orig - epsilon
-            lm = model.loss(all_ids)
-            model.out_proj[i][j] = orig - lr * (lp - lm) / (2 * epsilon)
-    if (epoch + 1) % 25 == 0:
-        print(f"  epoch {epoch+1}/100 | loss: {model.loss(all_ids):.3f}")
+# --- Train for a few hundred steps
+#all_ids = tokenizer.encode(" ".join(CORPUS))
+#lr, epsilon = 0.02, 1e-3
+#for epoch in range(10):
+    #for i in range(min(16, len(model.out_proj))):
+        #for j in range(min(16, len(model.out_proj[0]))):
+            #orig = model.out_proj[i][j]
+            #model.out_proj[i][j] = orig + epsilon
+            #lp = model.loss(all_ids)
+            #model.out_proj[i][j] = orig - epsilon
+            #lm = model.loss(all_ids)
+            #model.out_proj[i][j] = orig - lr * (lp - lm) / (2 * epsilon)
+    #if (epoch + 1) % 25 == 0:
+        #print(f"  epoch {epoch+1}/100 | loss: {model.loss(all_ids):.3f}")
 
-print(f"Model ready. Vocab size: {tokenizer.vocab_size}\n")
+#print(f"Model ready. Vocab size: {tokenizer.vocab_size}\n")
+
+import pickle
+
+print("Loading model...")
+with open('model.pkl', 'rb') as f:
+    model, tokenizer = pickle.load(f)
+print(f"Model ready. Vocab size: {tokenizer.vocab_size}")
 
 
 # ── Routes ────────────────────────────────────────────────────────────────
