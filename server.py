@@ -19,7 +19,7 @@ VOCAB_SIZE = 50257
 
 # ── Load PyTorch model ────────────────────────────────────────────────────
 print("Loading PyTorch model...")
-with open('checkpoint_torch.pkl', 'rb') as f:
+with open('checkpoint_117m_best.pkl', 'rb') as f:
     saved = pickle.load(f)
 
 model     = saved['model']
@@ -57,10 +57,17 @@ def generate():
     max_tokens  = min(int(data.get('max_tokens', 80)), 200)
     temperature = float(data.get('temperature', 0.8))
     top_p       = float(data.get('top_p', 0.9))
+    mode        = data.get('mode', 'completion')
 
     def stream():
+        if mode == 'instruction':
+            # Format as instruction prompt
+            full_prompt = f"### Instruction:\n{prompt}\n\n### Response:\n"
+        else:
+            full_prompt = prompt
+            
         # Encode prompt
-        ids = [min(i, VOCAB_SIZE - 1) for i in tokenizer.encode(prompt)]
+        ids = tokenizer.encode(full_prompt)
         token_tensor = torch.tensor(ids, dtype=torch.long).unsqueeze(0)
 
         yield f"data: {json.dumps({'type': 'prompt', 'text': prompt})}\n\n"
@@ -71,7 +78,7 @@ def generate():
                 try:
                     context = token_tensor[:, -256:]
                     logits  = model.forward(context)
-                    logits  = logits[:, -1, :] / temperature
+                    logits  = model.forward(context)[:, -1, :] / temperature
 
                     # Top-p sampling
                     sorted_logits, sorted_idx = torch.sort(logits, descending=True)
