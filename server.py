@@ -19,7 +19,7 @@ VOCAB_SIZE = 50257
 
 # ── Load PyTorch model ────────────────────────────────────────────────────
 print("Loading PyTorch model...")
-with open('checkpoint_117m_best.pkl', 'rb') as f:
+with open('checkpoint_compressed.pkl', 'rb') as f:
     saved = pickle.load(f)
 
 model     = saved['model']
